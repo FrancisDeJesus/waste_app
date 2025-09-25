@@ -1,3 +1,4 @@
+// lib/features/auth/signup_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -15,6 +16,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _pass = TextEditingController();
+  final _restaurant = TextEditingController();
+
+  String? _gender;
+  DateTime? _birthday;
+
   bool _busy = false;
 
   @override
@@ -22,17 +28,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _name.dispose();
     _email.dispose();
     _pass.dispose();
+    _restaurant.dispose();
     super.dispose();
+  }
+
+  InputDecoration deco(String label) => InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+      );
+
+  Future<void> _pickBirthday() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime(now.year - 18, now.month, now.day),
+      firstDate: DateTime(now.year - 80),
+      lastDate: DateTime(now.year - 10),
+    );
+    if (picked != null) {
+      setState(() => _birthday = picked);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    InputDecoration deco(String label) => InputDecoration(
-      labelText: label,
-      border: const OutlineInputBorder(),
-      isDense: true,
-    );
-
     return Scaffold(
       backgroundColor: const Color(0xFFF7F5F8),
       body: Center(
@@ -68,36 +88,92 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           style: TextStyle(color: Colors.black54)),
 
                       const SizedBox(height: 20),
-                      TextFormField(controller: _name, decoration: deco('Full Name'),
+                      // Full Name
+                      TextFormField(
+                          controller: _name,
+                          decoration: deco('Full Name'),
                           validator: (v) => v!.isEmpty ? 'Required' : null),
                       const SizedBox(height: 12),
-                      TextFormField(controller: _email, decoration: deco('Email'),
+                      // Email
+                      TextFormField(
+                          controller: _email,
+                          decoration: deco('Email'),
                           validator: (v) => v!.contains('@') ? null : 'Enter valid email'),
                       const SizedBox(height: 12),
-                      TextFormField(controller: _pass, obscureText: true,
+                      // Password
+                      TextFormField(
+                          controller: _pass,
+                          obscureText: true,
                           decoration: deco('Password'),
                           validator: (v) => v!.length < 6 ? 'Min 6 characters' : null),
+                      const SizedBox(height: 12),
+                      // Restaurant Name
+                      TextFormField(
+                          controller: _restaurant,
+                          decoration: deco('Restaurant Name'),
+                          validator: (v) => v!.isEmpty ? 'Required' : null),
+                      const SizedBox(height: 12),
+                      // Gender dropdown
+                      DropdownButtonFormField<String>(
+                        value: _gender,
+                        decoration: deco('Gender'),
+                        items: const [
+                          DropdownMenuItem(value: 'Male', child: Text('Male')),
+                          DropdownMenuItem(value: 'Female', child: Text('Female')),
+                          DropdownMenuItem(value: 'Prefer not to say', child: Text('Prefer not to say')),
+                        ],
+                        onChanged: (v) => setState(() => _gender = v),
+                        validator: (v) => v == null ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      // Birthday picker
+                      InputDecorator(
+                        decoration: deco('Birthday'),
+                        child: InkWell(
+                          onTap: _pickBirthday,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(_birthday == null
+                                    ? 'Select your birthday'
+                                    : '${_birthday!.year}-${_birthday!.month.toString().padLeft(2, '0')}-${_birthday!.day.toString().padLeft(2, '0')}'),
+                                const Icon(Icons.calendar_month, size: 20),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (_birthday == null)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 6, left: 8),
+                          child: Text('Required', style: TextStyle(color: Colors.red, fontSize: 12)),
+                        ),
 
                       const SizedBox(height: 20),
+                      // Sign up button
                       SizedBox(
                         width: double.infinity,
                         height: 44,
                         child: FilledButton(
-                          onPressed: _busy ? null : () async {
-                            if (!_form.currentState!.validate()) return;
-                            setState(() => _busy = true);
+                          onPressed: _busy
+                              ? null
+                              : () async {
+                                  if (!_form.currentState!.validate() || _birthday == null) return;
+                                  setState(() => _busy = true);
 
-                            // save to app state so "Hello ___!" shows the real name
-                            context.read<AppState>().register(
-                              n: _name.text.trim(),
-                              r: '',        // (optional for now)
-                              a: '',        // (optional for now)
-                            );
+                                  // save to app state
+                                  context.read<AppState>().register(
+                                        n: _name.text.trim(),
+                                        r: _restaurant.text.trim(),
+                                        a: '', // optional for now
+                                      );
 
-                            await Future.delayed(const Duration(milliseconds: 400)); // demo delay
-                            if (!mounted) return;
-                            context.go('/dashboard'); // land on the User dashboard
-                          },
+                                  await Future.delayed(const Duration(milliseconds: 400)); // demo delay
+                                  if (!mounted) return;
+                                  context.go('/dashboard');
+                                },
                           child: _busy
                               ? const CircularProgressIndicator()
                               : const Text('Sign Up'),
@@ -119,7 +195,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           const Text('Already have an Account? ',
                               style: TextStyle(color: Colors.black54)),
                           InkWell(
-                            onTap: () => context.go('/signin'), // go to SignIn
+                            onTap: () => context.go('/signin'),
                             child: const Text('Sign in',
                                 style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF2E7D32))),
                           ),
